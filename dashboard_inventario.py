@@ -2,13 +2,17 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
+import json
 
-# --- Configuração Google Sheets ---
+# --- Configuração Google Sheets usando secrets.toml ---
+secrets_json = st.secrets["google_service_account"]["json"]
+creds_dict = json.loads(secrets_json)
 SCOPE = ["https://spreadsheets.google.com/feeds",
          "https://www.googleapis.com/auth/drive"]
-creds = Credentials.from_service_account_file("mc1111-250507b6ca9b.json", scopes=SCOPE)
+creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPE)
 client = gspread.authorize(creds)
 
+# --- ID da planilha ---
 SPREADSHEET_ID = "1dthZulTwmj_80LGk4hSaH58CoLAKmw5ypLlUUgsK9hY"
 sheet = client.open_by_key(SPREADSHEET_ID)
 
@@ -43,20 +47,16 @@ def save_quantities(tab_name, df, wo_column):
         st.error(f"Coluna {wo_column} não encontrada no DataFrame.")
         return
 
-    # Lista de valores da WO
     values = df[wo_column].tolist()
 
-    # Determina letra da coluna (suporte até colunas AA, AB, etc.)
+    # Determina letra da coluna
     if col_index <= 26:
         col_letter = chr(64 + col_index)
     else:
         div, mod = divmod(col_index - 1, 26)
         col_letter = chr(64 + div) + chr(65 + mod)
 
-    # Range da célula (linha 2 até última linha)
     cell_range = f"{col_letter}2:{col_letter}{len(values)+1}"
-
-    # Atualiza toda a coluna de uma vez
     worksheet.update(cell_range, [[v] for v in values], value_input_option='USER_ENTERED')
 
 def load_active_wos():
